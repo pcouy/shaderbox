@@ -35,6 +35,7 @@ config.json — the code is still saved, but that channel needs manual wiring.
 import argparse
 import json
 import os
+import pathlib
 import re
 import sys
 import urllib.error
@@ -59,6 +60,9 @@ PASS_NAME_MAP = {
     "Cube A": "CubemapA",
     "Sound": "Sound",
 }
+
+CACHE_PATH = pathlib.Path("_texture_cache")
+CACHE_PATH.mkdir(parents=True, exist_ok=True)
 
 
 def extract_id(s: str) -> str:
@@ -110,7 +114,6 @@ def build_id_to_pass_key(renderpasses: list) -> dict:
             mapping[out["id"]] = key
     return mapping
 
-
 def resolve_channel(inp: dict, id_to_pass: dict):
     # Input objects use "type" for the channel's content type (buffer,
     # texture, keyboard, cubemap, ...) and "filepath" for the asset path.
@@ -122,7 +125,12 @@ def resolve_channel(inp: dict, id_to_pass: dict):
             return channel, {"unsupported": "buffer (could not resolve source pass)"}
         return channel, {"buffer": target.replace("Buffer", "")}
     if ctype == "texture":
-        return channel, {"texture": SITE_BASE + inp["filepath"]}
+        texture_path = pathlib.PurePath(inp["filepath"])
+        cached_texture = CACHE_PATH / texture_path.name
+        texture_url = SITE_BASE + inp["filepath"]
+        while not cached_texture.exists():
+            input(f"Please save '{texture_url}' to '{cached_texture.absolute()}' and press enter when done")
+        return channel, {"texture": texture_path.name}
     if ctype == "keyboard":
         return channel, {"keyboard": True}
     return channel, {"unsupported": ctype or "unknown"}
@@ -148,10 +156,21 @@ def main():
         sys.exit("Provide either a shader ID/URL or --json-file, not both.")
 
     if args.json_file:
-        with open(args.json_file) as f:
-            raw = json.load(f)
-        shader = normalize_shader_obj(raw)
-        shader_id = shader.get("info", {}).get("id") or os.path.splitext(os.path.basename(args.json_file))[0]
+        json_path = pathlib.Path(args.json_file)
+        if json_path.is_dir():
+            out_dir = pathlib.Path(args.out or "shaders")
+            for json_file in json_path.iterdir():
+                with json_file.open() as f:
+                    raw = json.load(f)
+                shader = normalize_shader_obj(raw)
+                shader_id = shader.get("info", {}).get("id") or os.path.splitext(os.path.basename(args.json_file))[0]
+                process_shader(shader, shader_id, out_dir / json_file.stem)
+            return
+        else:
+            with open(args.json_file) as f:
+                raw = json.load(f)
+            shader = normalize_shader_obj(raw)
+            shader_id = shader.get("info", {}).get("id") or os.path.splitext(os.path.basename(args.json_file))[0]
     else:
         if not args.api_key:
             sys.exit(
@@ -161,11 +180,13 @@ def main():
             )
         shader_id = extract_id(args.shader)
         shader = fetch_shader_json(shader_id, args.api_key)
+    out_dir = args.out or os.path.join("shaders", shader_id)
+    process_shader(shader, shader_id, out_dir)
 
+def process_shader(shader, shader_id, out_dir):
     info = shader.get("info", {})
     renderpasses = shader["renderpass"]
 
-    out_dir = args.out or os.path.join("shaders", shader_id)
     os.makedirs(out_dir, exist_ok=True)
 
     id_to_pass = build_id_to_pass_key(renderpasses)
@@ -195,6 +216,11 @@ def main():
         slots = [None, None, None, None]
         for inp in rp.get("inputs", []):
             idx, resolved = resolve_channel(inp, id_to_pass)
+            if "texture" in resolved:
+                cached_texture = CACHE_PATH / resolved["texture"]
+                out_texture = pathlib.Path(out_dir) / "textures" / resolved["texture"]
+                out_texture.parent.mkdir(exist_ok=True, parents=True)
+                cached_texture.copy(out_texture)
             slots[idx] = resolved
             if "unsupported" in resolved:
                 warnings.append(

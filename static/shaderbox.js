@@ -1,5 +1,3 @@
-const shaderboxScriptSrc = document.currentScript.src;
-
 function instantiateShader(htmlElement) {
     /* =========================================================================
        1. POINT AT A SHADER DIRECTORY
@@ -213,7 +211,7 @@ function instantiateShader(htmlElement) {
           });
         };
         img.onerror = reject;
-        img.src = `${shaderboxScriptSrc}/../images/${url}`;
+        img.src = `${SHADER_DIR}/textures/${url}`;
       });
     }
 
