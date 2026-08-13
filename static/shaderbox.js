@@ -35,7 +35,15 @@ function instantiateShader(htmlElement) {
     const errBox = document.createElement('pre');
     htmlElement.appendChild(canvas);
     htmlElement.appendChild(errBox);
-    const gl = canvas.getContext('webgl2');
+    const gl = canvas.getContext('webgl2', { 
+        alpha: false, 
+        depth: false, 
+        stencil: false, 
+        premultipliedAlpha: false, 
+        antialias: true, 
+        preserveDrawingBuffer: false, 
+        powerPreference: "high-performance" 
+    });
     if (!gl) fail('WebGL2 is not available in this browser.');
 
     function fail(msg){
@@ -377,8 +385,8 @@ function instantiateShader(htmlElement) {
       passes.forEach(pass => {
         const w = pass.target ? pass.target.w : canvas.width;
         const h = pass.target ? pass.target.h : canvas.height;
-        gl.bindFramebuffer(gl.FRAMEBUFFER, pass.target ? pass.target.backFBO : null);
         gl.viewport(0, 0, w, h);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, pass.target ? pass.target.backFBO : null);
         gl.useProgram(pass.program);
 
         gl.uniform3f(pass.u.iResolution, w, h, 1);
