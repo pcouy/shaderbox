@@ -1,4 +1,4 @@
-.shaderbox {
+:host {
   background-color: black;
   position: relative;
   padding: 0;
@@ -41,7 +41,7 @@
     z-index:10;
   }
 
-  &>form[aria-controls] {
+  &>form {
     border: 2px solid black;
     background: #333;
     float: right;
