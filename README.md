@@ -49,6 +49,13 @@ attribute.
 </body>
 ```
 
+### Start a HTTP server
+
+This will not work over `file://`, you need an HTTP server to serve the shader
+files. You can start one using `python -m http.server` from this repository's
+root directory. Any HTTP server that is able to serve static files should be
+compatible.
+
 ### Add form controls to your shaders
 
 You can optionally add an `id` to your shader div, then target it with a HTML
